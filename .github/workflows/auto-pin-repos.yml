@@ -19,7 +19,7 @@ jobs:
           node-version: '16'
 
       - name: Install Dependencies
-        run: npm install @octokit/graphql @actions/core @actions/github
+        run: npm install @octokit/graphql @octokit/rest
 
       - name: Run Script to Pin Repos
         env:
