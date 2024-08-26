@@ -1,0 +1,90 @@
+name: Auto Pin Repos
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  pin-repos:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install Dependencies
+        run: npm install @octokit/graphql @actions/core @actions/github
+
+      - name: Run Script to Pin Repos
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PAT: ${{ secrets.PAT }}
+        run: |
+          node -e "
+          const { graphql } = require('@octokit/graphql');
+          const { Octokit } = require('@octokit/rest');
+          const octokit = new Octokit({
+            auth: process.env.PAT,
+          });
+
+          async function pinRepositories() {
+            const userResponse = await graphql(\`
+              query {
+                viewer {
+                  login
+                  id
+                }
+              }
+            \`, {
+              headers: {
+                authorization: \`token \${process.env.PAT}\`,
+              },
+            });
+
+            const reposResponse = await octokit.repos.listForAuthenticatedUser({
+              sort: 'updated',
+              per_page: 6,
+            });
+
+            const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
+            const unpinMutation = \`
+              mutation($repoIds: [ID!]!) {
+                unpinRepositories(input: {repositoryIds: $repoIds}) {
+                  clientMutationId
+                }
+              }
+            \`;
+
+            const pinMutation = \`
+              mutation($repoId: ID!) {
+                pinRepository(input: {repositoryId: $repoId}) {
+                  clientMutationId
+                }
+              }
+            \`;
+
+            await graphql(unpinMutation, {
+              repoIds: pinnedRepos,
+              headers: {
+                authorization: \`token \${process.env.PAT}\`,
+              },
+            });
+
+            for (const repoId of pinnedRepos) {
+              await graphql(pinMutation, {
+                repoId,
+                headers: {
+                  authorization: \`token \${process.env.PAT}\`,
+                },
+              });
+            }
+          }
+
+          pinRepositories();
+          "
