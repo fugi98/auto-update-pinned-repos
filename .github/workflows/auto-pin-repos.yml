@@ -23,7 +23,6 @@ jobs:
 
       - name: Run Script to Pin Repos
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAT: ${{ secrets.PAT }}
         run: |
           node -e "
@@ -34,55 +33,62 @@ jobs:
           });
 
           async function pinRepositories() {
-            const userResponse = await graphql(\`
-              query {
-                viewer {
-                  login
-                  id
+            try {
+              const userResponse = await graphql(\`
+                query {
+                  viewer {
+                    login
+                    id
+                  }
                 }
-              }
-            \`, {
-              headers: {
-                authorization: \`token \${process.env.PAT}\`,
-              },
-            });
-
-            const reposResponse = await octokit.repos.listForAuthenticatedUser({
-              sort: 'updated',
-              per_page: 6,
-            });
-
-            const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
-            const unpinMutation = \`
-              mutation($repoIds: [ID!]!) {
-                unpinRepositories(input: {repositoryIds: $repoIds}) {
-                  clientMutationId
-                }
-              }
-            \`;
-
-            const pinMutation = \`
-              mutation($repoId: ID!) {
-                pinRepository(input: {repositoryId: $repoId}) {
-                  clientMutationId
-                }
-              }
-            \`;
-
-            await graphql(unpinMutation, {
-              repoIds: pinnedRepos,
-              headers: {
-                authorization: \`token \${process.env.PAT}\`,
-              },
-            });
-
-            for (const repoId of pinnedRepos) {
-              await graphql(pinMutation, {
-                repoId,
+              \`, {
                 headers: {
                   authorization: \`token \${process.env.PAT}\`,
                 },
               });
+
+              const reposResponse = await octokit.repos.listForAuthenticatedUser({
+                sort: 'updated',
+                per_page: 6,
+              });
+
+              const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
+
+              const unpinMutation = \`
+                mutation($repoIds: [ID!]!) {
+                  unpinRepositories(input: {repositoryIds: $repoIds}) {
+                    clientMutationId
+                  }
+                }
+              \`;
+
+              const pinMutation = \`
+                mutation($repoId: ID!) {
+                  pinRepository(input: {repositoryId: $repoId}) {
+                    clientMutationId
+                  }
+                }
+              \`;
+
+              await graphql(unpinMutation, {
+                repoIds: pinnedRepos,
+                headers: {
+                  authorization: \`token \${process.env.PAT}\`,
+                },
+              });
+
+              for (const repoId of pinnedRepos) {
+                await graphql(pinMutation, {
+                  repoId,
+                  headers: {
+                    authorization: \`token \${process.env.PAT}\`,
+                  },
+                });
+              }
+
+            } catch (error) {
+              console.error('Error pinning repositories:', error);
+              process.exit(1);
             }
           }
 
