@@ -2,7 +2,7 @@ name: Auto Pin Repos
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Runs daily at midnight
+    - cron: '*/15 * * * *' # Runs daily at midnight
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
