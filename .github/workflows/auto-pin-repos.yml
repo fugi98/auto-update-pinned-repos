@@ -2,7 +2,7 @@ name: Auto Pin Repos
 
 on:
   schedule:
-    - cron: '*/01 * * * *' # Runs every 1 minutes (adjust as needed)
+    - cron: '*/01 * * * *' # Runs every 1 minute (adjust as needed)
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
@@ -40,45 +40,34 @@ jobs:
 
             async function pinRepositories() {
               try {
-                const userResponse = await graphql(\`
-                  query {
-                    viewer {
-                      login
-                      id
-                    }
-                  }
-                \`, {
-                  headers: {
-                    authorization: \`token \${process.env.PAT}\`,
-                  },
-                  request: {
-                    fetch: fetch,
-                  },
-                });
-
+                // Get the list of repositories
                 const reposResponse = await octokit.repos.listForAuthenticatedUser({
                   sort: 'updated',
                   per_page: 6,
                 });
 
+                // Extract the repository IDs
                 const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
 
-                const unpinMutation = \`
+                // Mutation to unpin repositories
+                const unpinMutation = `
                   mutation($repoIds: [ID!]!) {
                     unpinRepositories(input: { repositoryIds: $repoIds }) {
                       clientMutationId
                     }
                   }
-                \`;
+                `;
 
-                const pinMutation = \`
+                // Mutation to pin a repository
+                const pinMutation = `
                   mutation($repoId: ID!) {
                     pinRepository(input: { repositoryId: $repoId }) {
                       clientMutationId
                     }
                   }
-                \`;
+                `;
 
+                // Unpin existing repositories
                 await graphql(unpinMutation, {
                   repoIds: pinnedRepos,
                   headers: {
@@ -89,6 +78,7 @@ jobs:
                   },
                 });
 
+                // Pin new repositories
                 for (const repoId of pinnedRepos) {
                   await graphql(pinMutation, {
                     repoId,
