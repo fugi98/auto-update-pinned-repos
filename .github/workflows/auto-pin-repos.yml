@@ -2,7 +2,7 @@ name: Auto Pin Repos
 
 on:
   schedule:
-    - cron: '*/01 * * * *' # Runs every 1 minute (adjust as needed)
+    - cron: '*/1 * * * *' # Runs every minute (adjust as needed)
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
@@ -40,13 +40,18 @@ jobs:
 
             async function pinRepositories() {
               try {
+                // Fetch repositories
                 const reposResponse = await octokit.repos.listForAuthenticatedUser({
                   sort: 'updated',
                   per_page: 6,
                 });
 
+                // Map repository node IDs
                 const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
 
+                console.log('Pinned Repos:', pinnedRepos);
+
+                // Define GraphQL mutations
                 const unpinMutation = \`
                   mutation($repoIds: [ID!]!) {
                     unpinRepositories(input: { repositoryIds: $repoIds }) {
@@ -63,6 +68,7 @@ jobs:
                   }
                 \`;
 
+                // Unpin repositories
                 await graphql(unpinMutation, {
                   repoIds: pinnedRepos,
                   headers: {
@@ -73,6 +79,9 @@ jobs:
                   },
                 });
 
+                console.log('Unpinned Repos:', pinnedRepos);
+
+                // Pin repositories
                 for (const repoId of pinnedRepos) {
                   await graphql(pinMutation, {
                     repoId: repoId,
@@ -84,6 +93,8 @@ jobs:
                     },
                   });
                 }
+
+                console.log('Pinned Repos:', pinnedRepos);
 
               } catch (error) {
                 console.error('Error pinning repositories:', error);
