@@ -52,27 +52,27 @@ jobs:
                 console.log('Pinned Repos:', pinnedRepos);
 
                 // Define GraphQL mutations
-                const unpinMutation = \`
+                const unpinMutation = `
                   mutation($repoIds: [ID!]!) {
                     unpinRepositories(input: { repositoryIds: $repoIds }) {
                       clientMutationId
                     }
                   }
-                \`;
+                `;
 
-                const pinMutation = \`
+                const pinMutation = `
                   mutation($repoId: ID!) {
                     pinRepository(input: { repositoryId: $repoId }) {
                       clientMutationId
                     }
                   }
-                \`;
+                `;
 
                 // Unpin repositories
                 await graphql(unpinMutation, {
                   repoIds: pinnedRepos,
                   headers: {
-                    authorization: \`token \${process.env.PAT}\`,
+                    authorization: `token ${process.env.PAT}`,
                   },
                   request: {
                     fetch: fetch,
@@ -86,7 +86,7 @@ jobs:
                   await graphql(pinMutation, {
                     repoId: repoId,
                     headers: {
-                      authorization: \`token \${process.env.PAT}\`,
+                      authorization: `token ${process.env.PAT}`,
                     },
                     request: {
                       fetch: fetch,
