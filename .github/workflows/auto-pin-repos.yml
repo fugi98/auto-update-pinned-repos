@@ -40,34 +40,29 @@ jobs:
 
             async function pinRepositories() {
               try {
-                // Get the list of repositories
                 const reposResponse = await octokit.repos.listForAuthenticatedUser({
                   sort: 'updated',
                   per_page: 6,
                 });
 
-                // Extract the repository IDs
                 const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
 
-                // Mutation to unpin repositories
-                const unpinMutation = `
+                const unpinMutation = \`
                   mutation($repoIds: [ID!]!) {
                     unpinRepositories(input: { repositoryIds: $repoIds }) {
                       clientMutationId
                     }
                   }
-                `;
+                \`;
 
-                // Mutation to pin a repository
-                const pinMutation = `
+                const pinMutation = \`
                   mutation($repoId: ID!) {
                     pinRepository(input: { repositoryId: $repoId }) {
                       clientMutationId
                     }
                   }
-                `;
+                \`;
 
-                // Unpin existing repositories
                 await graphql(unpinMutation, {
                   repoIds: pinnedRepos,
                   headers: {
@@ -78,7 +73,6 @@ jobs:
                   },
                 });
 
-                // Pin new repositories
                 for (const repoId of pinnedRepos) {
                   await graphql(pinMutation, {
                     repoId,
