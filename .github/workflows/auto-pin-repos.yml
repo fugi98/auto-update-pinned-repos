@@ -25,4 +25,4 @@ jobs:
         env:
           PAT: ${{ secrets.PAT }}
         run: |
-          node pin-repos.js
+          node scripts/pin-repos.js
