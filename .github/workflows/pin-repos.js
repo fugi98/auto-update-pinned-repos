@@ -1,34 +1,77 @@
-name: Auto Pin Repos
+const { graphql } = require('@octokit/graphql');
+const { Octokit } = require('@octokit/rest');
+const fetch = require('node-fetch');
 
-on:
-  push:
-    branches:
-      - main  # Trigger on push to the main branch, adjust as necessary
-  workflow_dispatch:  # Allow manual trigger
+const PAT = process.env.PAT; // Personal Access Token
 
-jobs:
-  pin-repos:
-    runs-on: ubuntu-latest  # Use an appropriate runner for your environment
+const octokit = new Octokit({
+  auth: PAT,
+  request: {
+    fetch: fetch,
+  },
+});
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+const graphqlWithAuth = graphql.defaults({
+  headers: {
+    authorization: `token ${PAT}`,
+  },
+  request: {
+    fetch: fetch,
+  },
+});
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'  # Use the Node.js version you need
+async function pinRepositories() {
+  try {
+    // Fetch repositories
+    const reposResponse = await octokit.repos.listForAuthenticatedUser({
+      sort: 'updated',
+      per_page: 6,
+    });
 
-      - name: Install dependencies
-        run: |
-          npm install @octokit/graphql @octokit/rest node-fetch
+    // Map repository node IDs
+    const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
 
-      - name: Run pin-repos script
-        env:
-          PAT: ${{ secrets.GITHUB_TOKEN }}  # Use GitHub token or your personal access token
-        run: |
-          node scripts/pin-repos.js  # Adjust the path if you saved the script elsewhere
+    console.log('Pinned Repos:', pinnedRepos);
 
-      - name: Cleanup
-        run: |
-          # Any additional cleanup commands if needed
+    // Define GraphQL mutations
+    const unpinMutation = `
+      mutation($repoIds: [ID!]!) {
+        unpinRepositories(input: { repositoryIds: $repoIds }) {
+          clientMutationId
+        }
+      }
+    `;
+
+    const pinMutation = `
+      mutation($repoId: ID!) {
+        pinRepository(input: { repositoryId: $repoId }) {
+          clientMutationId
+        }
+      }
+    `;
+
+    // Unpin repositories
+    if (pinnedRepos.length > 0) {
+      await graphqlWithAuth(unpinMutation, {
+        repoIds: pinnedRepos,
+      });
+
+      console.log('Unpinned Repos:', pinnedRepos);
+    }
+
+    // Pin repositories
+    for (const repoId of pinnedRepos) {
+      await graphqlWithAuth(pinMutation, {
+        repoId: repoId,
+      });
+    }
+
+    console.log('Pinned Repos:', pinnedRepos);
+
+  } catch (error) {
+    console.error('Error pinning repositories:', error);
+    process.exit(1);
+  }
+}
+
+pinRepositories();
