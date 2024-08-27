@@ -65,7 +65,7 @@ jobs:
 
                 const unpinMutation = \`
                   mutation($repoIds: [ID!]!) {
-                    unpinRepositories(input: {repositoryIds: $repoIds}) {
+                    unpinRepositories(input: { repositoryIds: $repoIds }) {
                       clientMutationId
                     }
                   }
@@ -73,7 +73,7 @@ jobs:
 
                 const pinMutation = \`
                   mutation($repoId: ID!) {
-                    pinRepository(input: {repositoryId: $repoId}) {
+                    pinRepository(input: { repositoryId: $repoId }) {
                       clientMutationId
                     }
                   }
