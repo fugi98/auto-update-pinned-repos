@@ -2,7 +2,7 @@ name: Auto Pin Repos
 
 on:
   schedule:
-    - cron: '*/15 * * * *' # Runs daily at midnight
+    - cron: '*/15 * * * *' # Change this to the time you want
   workflow_dispatch: # Allows manual triggering of the workflow
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
           node-version: '16'
 
       - name: Install Dependencies
-        run: npm install @octokit/graphql @octokit/rest
+        run: npm install @octokit/graphql @octokit/rest node-fetch
 
       - name: Run Script to Pin Repos
         env:
@@ -29,8 +29,13 @@ jobs:
           (async () => {
             const { graphql } = await import('@octokit/graphql');
             const { Octokit } = await import('@octokit/rest');
+            const fetch = (await import('node-fetch')).default;
+
             const octokit = new Octokit({
               auth: process.env.PAT,
+              request: {
+                fetch: fetch,
+              },
             });
 
             async function pinRepositories() {
@@ -45,6 +50,9 @@ jobs:
                 \`, {
                   headers: {
                     authorization: \`token \${process.env.PAT}\`,
+                  },
+                  request: {
+                    fetch: fetch,
                   },
                 });
 
@@ -76,6 +84,9 @@ jobs:
                   headers: {
                     authorization: \`token \${process.env.PAT}\`,
                   },
+                  request: {
+                    fetch: fetch,
+                  },
                 });
 
                 for (const repoId of pinnedRepos) {
@@ -83,6 +94,9 @@ jobs:
                     repoId,
                     headers: {
                       authorization: \`token \${process.env.PAT}\`,
+                    },
+                    request: {
+                      fetch: fetch,
                     },
                   });
                 }
