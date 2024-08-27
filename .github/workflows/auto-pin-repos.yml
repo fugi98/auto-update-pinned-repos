@@ -26,71 +26,73 @@ jobs:
           PAT: ${{ secrets.PAT }}
         run: |
           node -e "
-          const { graphql } = require('@octokit/graphql');
-          const { Octokit } = require('@octokit/rest');
-          const octokit = new Octokit({
-            auth: process.env.PAT,
-          });
+          (async () => {
+            const { graphql } = await import('@octokit/graphql');
+            const { Octokit } = await import('@octokit/rest');
+            const octokit = new Octokit({
+              auth: process.env.PAT,
+            });
 
-          async function pinRepositories() {
-            try {
-              const userResponse = await graphql(\`
-                query {
-                  viewer {
-                    login
-                    id
+            async function pinRepositories() {
+              try {
+                const userResponse = await graphql(\`
+                  query {
+                    viewer {
+                      login
+                      id
+                    }
                   }
-                }
-              \`, {
-                headers: {
-                  authorization: \`token \${process.env.PAT}\`,
-                },
-              });
-
-              const reposResponse = await octokit.repos.listForAuthenticatedUser({
-                sort: 'updated',
-                per_page: 6,
-              });
-
-              const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
-
-              const unpinMutation = \`
-                mutation($repoIds: [ID!]!) {
-                  unpinRepositories(input: {repositoryIds: $repoIds}) {
-                    clientMutationId
-                  }
-                }
-              \`;
-
-              const pinMutation = \`
-                mutation($repoId: ID!) {
-                  pinRepository(input: {repositoryId: $repoId}) {
-                    clientMutationId
-                  }
-                }
-              \`;
-
-              await graphql(unpinMutation, {
-                repoIds: pinnedRepos,
-                headers: {
-                  authorization: \`token \${process.env.PAT}\`,
-                },
-              });
-
-              for (const repoId of pinnedRepos) {
-                await graphql(pinMutation, {
-                  repoId,
+                \`, {
                   headers: {
                     authorization: \`token \${process.env.PAT}\`,
                   },
                 });
+
+                const reposResponse = await octokit.repos.listForAuthenticatedUser({
+                  sort: 'updated',
+                  per_page: 6,
+                });
+
+                const pinnedRepos = reposResponse.data.map(repo => repo.node_id);
+
+                const unpinMutation = \`
+                  mutation($repoIds: [ID!]!) {
+                    unpinRepositories(input: {repositoryIds: $repoIds}) {
+                      clientMutationId
+                    }
+                  }
+                \`;
+
+                const pinMutation = \`
+                  mutation($repoId: ID!) {
+                    pinRepository(input: {repositoryId: $repoId}) {
+                      clientMutationId
+                    }
+                  }
+                \`;
+
+                await graphql(unpinMutation, {
+                  repoIds: pinnedRepos,
+                  headers: {
+                    authorization: \`token \${process.env.PAT}\`,
+                  },
+                });
+
+                for (const repoId of pinnedRepos) {
+                  await graphql(pinMutation, {
+                    repoId,
+                    headers: {
+                      authorization: \`token \${process.env.PAT}\`,
+                    },
+                  });
+                }
+
+              } catch (error) {
+                console.error('Error pinning repositories:', error);
+                process.exit(1);
               }
-
-            } catch (error) {
-              console.error('Error pinning repositories:', error);
-              process.exit(1);
             }
-          }
 
-          pinRepositories();
+            pinRepositories();
+          })();
           "
