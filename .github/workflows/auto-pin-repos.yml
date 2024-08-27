@@ -75,7 +75,7 @@ jobs:
 
                 for (const repoId of pinnedRepos) {
                   await graphql(pinMutation, {
-                    repoId,
+                    repoId: repoId,
                     headers: {
                       authorization: \`token \${process.env.PAT}\`,
                     },
